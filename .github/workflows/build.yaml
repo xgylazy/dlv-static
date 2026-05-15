@@ -1,0 +1,39 @@
+name: Build static dlv
+
+on:
+  workflow_dispatch:          # 手动触发
+  push:
+    tags:
+      - 'dlv-*'              # 例如推送 dlv-v1.23.0 这样的 tag 时自动构建
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        goos: [linux]         # 可按需增加 darwin, windows 等
+        goarch: [amd64, arm64]
+    steps:
+      - name: Checkout delve source
+        uses: actions/checkout@v4
+        with:
+          repository: go-delve/delve   # 直接签出 delve 官方仓库
+          ref: main                    # 或指定 tag，如 ref: v1.23.0
+          path: delve
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'          # 根据 delve 要求调整，用高版本更稳
+
+      - name: Build static dlv
+        working-directory: delve
+        run: |
+          CGO_ENABLED=0 GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} \
+            go build -o dlv-static-${{ matrix.goos }}-${{ matrix.goarch }} ./cmd/dlv
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dlv-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: delve/dlv-static-*
